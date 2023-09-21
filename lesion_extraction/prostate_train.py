@@ -20,11 +20,9 @@ class ProstateDataProcessor:
             print(f"Error loading the input file: {e}")
             return
 
-        
         df['extracted_lesion_paragraph'] = ''
         df['extracted_lesion_no'] = None
 
-        
         for index, row in df.iterrows():
             comment = row['NARRATIVE']
             if isinstance(comment, str):
@@ -303,8 +301,7 @@ class ProstateDataProcessor:
                 else:
                     df.at[index, 'extracted_bones'] = 'present'
 
-
-        # df.to_excel("/mnt/storage/RAD_PATH/updated_lesion_results.xlsx") 
+         
         # Saving processed data to the output Excel file
         try:
             df.to_excel(output_file)
