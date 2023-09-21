@@ -1,4 +1,12 @@
-# prostate_lesion
+# prostate_lesion_Extraction
+
+This contains the code to extract the Lesion paragraphs, No.of lesions, Volume, Scores etc from Prostate Clinical Indications file
+
+## How to Run the Code
+
+1.  python prostate_main.py --input-file "Path to input file" --output-file "path to output file"
+
+
 # Prostate Lesion Indication Classifier
 
 This repository contains the code for a multi-class classification model that predicts the indication of prostate lesions based on clinical text data. The model is trained using the XGBoost algorithm and uses TF-IDF vectorization for feature extraction from the text data.
