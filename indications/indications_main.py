@@ -3,8 +3,7 @@ import os
 import argparse
 import sys
 import indications_train as train 
-header = "/mnt/storage/RAD_PATH/lesion/prostate_lesion/"
-header1 = "/mnt/storage/RAD_PATH/clinical_indications/"
+ 
 parser = argparse.ArgumentParser()
 parser.add_argument('--modelpath', type=str,
                     default=header+"indications/savedModel/", 

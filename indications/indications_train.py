@@ -10,8 +10,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
 
-header = "/mnt/storage/RAD_PATH/lesion/prostate_lesion/"
-header1 = "/mnt/storage/RAD_PATH/clinical_indications/"
+
 
 class ProstateIndicationClassifier:
     def __init__(self):
