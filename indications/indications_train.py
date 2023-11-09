@@ -1,117 +1,114 @@
 import pandas as pd
 import numpy as np
-import re 
-import string 
+import re
+import string
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import train_test_split 
-import xgboost as xgb
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
-
-
+import xgboost as xgb
 
 class ProstateIndicationClassifier:
     def __init__(self):
-        self.xgb_model = {}
+        self.xgb_model = xgb.XGBClassifier(objective='multi:softmax')
         self.vectorizer = TfidfVectorizer(ngram_range=(2, 2))
         self.labels = ['pca', 'no prior bx', 'benign bx', 'xrt planning', 'recurrence', 'as']
         self.y_map = {'pca': 0, 'no prior bx': 1, 'benign bx': 2, 'xrt planning': 3, 'recurrence': 4, 'as': 5}
-        self.LMmodel = xgb.XGBClassifier(objective='multi:softmax')
-        
-    def model_load(self, modelpath):
-        self.LMmodel = xgb.XGBClassifier()
-        self.LMmodel.load_model(modelpath + 'CIXgboost.json')
-        self.vectorizer = joblib.load(modelpath+'tfidf_vectorizer.pkl')   
-        print('Model loaded!!') 
 
-    def model_save(self, modelpath):
-        try:
-            self.xgb_model.save_model(modelpath + 'CIXgboost.json') 
-            joblib.dump(self.vectorizer, modelpath+'tfidf_vectorizer.pkl')   
-            print('Model saved!!')
-        except:
-            print('Model saving didn\'t work') 
+    def extract_and_preprocess(self, df):
+        df['Prostate_Indications'] = df['NARRATIVE'].apply(self.extract_prostate_indications)
+        df['Comments'] = df['Prostate_Indications'].apply(self.preprocessing)
+        df = df[['Comments', 'NELLY INDICATIONS']].dropna()
+        df['NELLY INDICATIONS'] = df['NELLY INDICATIONS'].map(self.y_map)
+        return df
 
     def train_main(self, traindf, testdf):
-        print('Train main execution started') 
-        traindf.dropna(inplace=True)
-        traindf.rename(columns={'Prostate_Indications': 'Comments', 'NELLY INDICATIONS': 'classes'}, inplace=True)   
-        print(traindf['Comments'])
-        traindf['Comments'] = traindf['Comments'].astype(str)
-        traindf = traindf.reset_index(drop=True)
-        testdf.dropna(inplace=True)
-        testdf.rename(columns={'Prostate_Indications': 'Comments', 'NELLY INDICATIONS': 'classes'}, inplace=True)   
-        print(testdf['Comments'])
-        testdf['Comments'] = testdf['Comments'].astype(str)
-        testdf = testdf.reset_index(drop=True)
-        X_train = traindf.Comments
-        y_train = traindf.classes.map(self.y_map)
-        X_test = testdf.Comments
-        y_test = testdf.classes.map(self.y_map)
-        
-        self.vectorizer.fit(X_train)
-        # joblib.dump(self.vectorizer, 'tfidf_vectorizer.pkl')  # Save the fitted vectorizer
-        train_sentence_embeddings = self.vectorizer.transform(X_train).toarray()
-        test_sentence_embeddings = self.vectorizer.transform(X_test).toarray()
-        
+        print('Train main execution started')
+
+        traindf_processed = self.extract_and_preprocess(traindf)
+        testdf_processed = self.extract_and_preprocess(testdf)
+
+        # Transform the comments into TF-IDF features
+        self.vectorizer.fit(traindf_processed['Comments'])
+        train_sentence_embeddings = self.vectorizer.transform(traindf_processed['Comments']).toarray()
+        test_sentence_embeddings = self.vectorizer.transform(testdf_processed['Comments']).toarray()
+
+        # Balance the classes
         from sklearn.utils import compute_sample_weight
-        sample_weights = compute_sample_weight(class_weight='balanced', y=y_train)
-        self.xgb_model = xgb.XGBClassifier(objective='multi:softmax')
-        self.xgb_model.fit(train_sentence_embeddings, y_train, sample_weight=sample_weights) 
-        y_pred = self.xgb_model.predict(test_sentence_embeddings)  
-        print('Test accuracy is {}'.format(accuracy_score(y_test, y_pred)))
-        print(classification_report(y_test, y_pred))
-        cm = confusion_matrix(y_test, y_pred) 
-        sns.heatmap(cm, annot=True, cmap='Blues', fmt='d', xticklabels=self.labels, yticklabels=self.labels) 
+        sample_weights = compute_sample_weight(class_weight='balanced', y=traindf_processed['NELLY INDICATIONS'])
+
+        # Fit the model
+        self.xgb_model.fit(train_sentence_embeddings, traindf_processed['NELLY INDICATIONS'], sample_weight=sample_weights)
+
+        # Predict on the test data
+        y_pred = self.xgb_model.predict(test_sentence_embeddings)
+
+        # Output the results
+        print('Test accuracy is {}'.format(accuracy_score(testdf_processed['NELLY INDICATIONS'], y_pred)))
+        print(classification_report(testdf_processed['NELLY INDICATIONS'], y_pred))
+        cm = confusion_matrix(testdf_processed['NELLY INDICATIONS'], y_pred)
+        sns.heatmap(cm, annot=True, cmap='Blues', fmt='d', xticklabels=self.labels, yticklabels=self.labels)
         plt.xlabel('Predicted Labels')
         plt.ylabel('True Labels')
-        plt.title('Confusion Matrix') 
+        plt.title('Confusion Matrix')
         plt.xticks(rotation=45)
-        plt.yticks(rotation=0) 
+        plt.yticks(rotation=0)
         plt.show()
-        misclassified_data = pd.DataFrame({
-            'Comments': testdf['Comments'],
-            'True_label': testdf['classes'],
-            'Predicted_label': y_pred
-        })
-        misclassified_data_filtered = misclassified_data[misclassified_data['True_label'] != misclassified_data['Predicted_label']]
-        y_map = {0: 'pca', 1: 'no prior bx', 2: 'benign bx', 3: 'xrt planning', 4: 'recurrence', 5: 'as'}
-        misclassified_data_filtered['classes'] = misclassified_data_filtered['True_label'].map(y_map)
-        misclassified_data_filtered['Predicted_class'] = misclassified_data_filtered['Predicted_label'].map(y_map)
-        misclassified_data_filtered.to_excel(header + "indications/output/misclassified_train_data.xlsx")
 
-    def test_main(self, testdf, modelpath):
-        print('Test main execution started')
-        testdf.dropna(inplace=True)
-        testdf.rename(columns={'Prostate_Indications': 'Comments', 'NELLY INDICATIONS': 'classes'}, inplace=True)
-        testdf['Comments'] = testdf['Comments'].astype(str)
-        testdf = testdf.reset_index(drop=True)
-        X_test = testdf.Comments
-        y_test = testdf.classes.map(self.y_map)
-        print(testdf) 
-         
-        test_sentence_embeddings = self.vectorizer.transform(X_test).toarray()
-        print(test_sentence_embeddings.shape)
-        y_pred = self.LMmodel.predict(test_sentence_embeddings)
-         
-        misclassified_data = pd.DataFrame({
-            'Comments': testdf['Comments'],
-            'True_label': testdf['classes'],
-            'Predicted_label': y_pred
+        print('Training completed.')
+    
+    def extract_and_preprocess_test_data(self, df):
+        df['Prostate_Indications'] = df['NARRATIVE'].apply(self.extract_prostate_indications)
+        df['Comments'] = df['Prostate_Indications'].apply(self.preprocessing)
+        df = df[['Comments']].dropna()
+        return df
+        
+        
+    def test_main(self, testdf, model_path):
+        print('Test main execution started') 
+        # Load the model
+        self.model_load(model_path)  
+        testdf_processed = self.extract_and_preprocess_test_data(testdf)
+        test_sentence_embeddings = self.vectorizer.transform(testdf_processed['Comments']).toarray() 
+        # Predict on the test data
+        y_pred = self.xgb_model.predict(test_sentence_embeddings) 
+        # DataFrame with comments and predicted labels
+        predictions = pd.DataFrame({
+            'Comments': testdf_processed['Comments'],
+            'PredictedLabel': [self.labels[pred] for pred in y_pred]
         })
-        misclassified_data_filtered = misclassified_data[misclassified_data['True_label'] != misclassified_data['Predicted_label']]
-        y_map = {0: 'pca', 1: 'no prior bx', 2: 'benign bx', 3: 'xrt planning', 4: 'recurrence', 5: 'as'}
-        misclassified_data_filtered['classes'] = misclassified_data_filtered['True_label'].map(y_map)
-        misclassified_data_filtered['Predicted_class'] = misclassified_data_filtered['Predicted_label'].map(y_map)
-        misclassified_data_filtered.to_excel(header + "indications/output/misclassified_test_data.xlsx")
-        print('Prediction completed!')
+        print('Testing completed.')
+        return predictions
+
+    def model_save(self, model_path):
+        # Save the model and the vectorizer
+        joblib.dump(self.xgb_model, model_path + 'xgb_model.pkl')
+        joblib.dump(self.vectorizer, model_path + 'tfidf_vectorizer.pkl')
+        print(f"Model saved to {model_path}")
+
+    def model_load(self, model_path):
+        # Load the model and the vectorizer
+        self.xgb_model = joblib.load(model_path + 'xgb_model.pkl')
+        self.vectorizer = joblib.load(model_path + 'tfidf_vectorizer.pkl')
+        print(f"Model loaded from {model_path}")
 
     def preprocessing(self, x):
         text = x.lower()
-        exclist = string.punctuation
-        table_ = str.maketrans('', '', exclist)
-        text = text.translate(table_)
-        words = text.split()
-        return ' '.join(words)
+        text = re.sub(r'\d+', '', text)  
+        text = text.translate(str.maketrans('', '', string.punctuation))   
+        text = text.strip()
+        return text
+ 
+    def extract_prostate_indications(text): 
+        pattern = r'(?:HISTORY:|INFORMATION:|History:)(.*?)(?=(PROSTATE|COMPARISON|TECHNIQUE))' 
+        matches = re.findall(pattern, text, flags=re.DOTALL) 
+        if matches: 
+            result = matches[0] 
+            if isinstance(result, tuple):
+                result = result[0] 
+            return result.strip()
+        else: 
+            return ''
+
+ 
