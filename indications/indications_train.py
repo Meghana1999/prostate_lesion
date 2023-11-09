@@ -100,7 +100,7 @@ class ProstateIndicationClassifier:
         text = text.strip()
         return text
  
-    def extract_prostate_indications(text): 
+    def extract_prostate_indications(self,text): 
         pattern = r'(?:HISTORY:|INFORMATION:|History:)(.*?)(?=(PROSTATE|COMPARISON|TECHNIQUE))' 
         matches = re.findall(pattern, text, flags=re.DOTALL) 
         if matches: 
