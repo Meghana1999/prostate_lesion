@@ -11,3 +11,8 @@ if __name__ == "__main__":
     data_processor = ProstateDataProcessor()
     data_processor.process_prostate_data(args.input_file, args.output_file)
     print('CODE EXECUTION COMPLETED')
+
+
+#### To Run ###
+## python prostate_main.py --input-file input_file.xlsx --output-file output_file.xlsx
+
