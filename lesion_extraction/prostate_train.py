@@ -1,13 +1,7 @@
 import pandas as pd
 import re
-import pandas as pd
-import re
 import numpy as np
-import nltk
-from nltk.translate.bleu_score import sentence_bleu 
-from sklearn.metrics import r2_score
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import CountVectorizer
+ 
 
 
 class ProstateDataProcessor:
@@ -302,7 +296,7 @@ class ProstateDataProcessor:
                     df.at[index, 'extracted_bones'] = 'present'
 
          
-        # Saving processed data to the output Excel file
+        # Saving processed data
         try:
             df.to_excel(output_file)
             print(f"Data has been processed and saved to {output_file}")
