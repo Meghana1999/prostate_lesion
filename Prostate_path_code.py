@@ -96,7 +96,7 @@ def extract_required_fields(section_text):
 
 
 #  SYSTEMATIC,  Functions for Getting highest gleason info
-def find_and_extract_info(df, column_name):
+def find_and_extract_systematic_info(df, column_name):
     def extract_info(text):
         location, score, section_content = find_highest_gleason_section_and_content(text)
         if location:
@@ -195,7 +195,7 @@ def process_dataframe_bx1(df):
             df = extract_roi_fields(df, col) 
 
     # For Systematic,, Find and extract the highest Gleason info
-    df = find_and_extract_info(df, 'remaining_final_diagnosis_content') 
+    df = find_and_extract_systematic_info(df, 'remaining_final_diagnosis_content') 
     return df
 
 # Extracting all Targeted ROIs and systematic contents from PATH_RES_2
@@ -219,7 +219,7 @@ def process_dataframe_bx2(df):
             df = extract_roi_fields(df, col)
 
     # For Systematic, Find and extract the highest Gleason info 
-    df = find_and_extract_info(df, 'remaining_final_diagnosis_content')
+    df = find_and_extract_systematic_info(df, 'remaining_final_diagnosis_content')
     return df
 
 
